@@ -28,11 +28,19 @@ struct Board {
 		logf( 1, " Lights %i\n", lightCount );
 		for( unsigned int y = 0; y < h; ++y ) {
 			char buff[32] = {0};
-			char pb[] = " .x";
+			char pb[] = " .xO";
 			for( unsigned int x = 0; x < w; ++x ) {
 				buff[x] = pb[b[y*w+x]];
 			}
 			logf( 1, "> %s\n", buff );
+		}
+	}
+	void SetButton( unsigned int x, unsigned int y ) {
+		if( x >= w || y >= h )
+			return;
+		unsigned char &cell = b[x+y*w];
+		if( cell > 0 ) {
+			cell = 3;
 		}
 	}
 	void ToggleOne( unsigned int x, unsigned int y ) {
@@ -92,8 +100,10 @@ struct Board {
 				for( unsigned int i = 0; i < 32; ++i ) {
 					if( (1U<<i) & grayBits ) {
 						logf( 1, "Toggle %i,%i\n", btnx[i], btny[i] );
+						SetButton( btnx[i], btny[i] );
 					}
 				}
+				PrintBoard();
 				return true;
 			}
 		}
@@ -162,7 +172,7 @@ bool RunPuzzle( int testID ) {
 	return true;
 }
 
-const int MAX_PUZZLE_ID = 5;
+const int MAX_PUZZLE_ID = 6;
 
 int main( ) {
 	for( int pid = 0; pid <= MAX_PUZZLE_ID; ++pid ) {
