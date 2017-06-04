@@ -31,6 +31,12 @@ inline int bitweight32( int v ) {
 	int c = (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24; // count
 	return c;
 }
+inline unsigned int hibit( unsigned int x )
+{
+  unsigned int log2Val = 0 ;
+  while( x ) { x>>=1; log2Val++; }  // eg x=63 (111111), log2Val=5
+  return log2Val;
+}
 
 inline int EpochSeconds() {
 	return (int)time(0);
@@ -110,13 +116,10 @@ inline const char * ToBinaryString( const unsigned int binVal ) {
 	static int selected = 0; selected = (selected + 1) % 4;
 	char *bb = binBuffer + (selected * 65);
 	bb[0] = 0;
-	for( size_t i = 0; i < sizeof(binVal)*8; ++i ) {
+	unsigned int maxBit = hibit( binVal );
+	maxBit = maxBit > 0 ? maxBit : 1;
+	for( size_t i = 0; i < maxBit; ++i ) {
 		strcat(bb,(binVal&(1<<i))?"1":"0");
-	}
-	char *bend = bb+31;
-	while( *bend == '0' && bend > bb ) {
-		*bend = 0;
-		--bend;
 	}
 	return bb;
 }
