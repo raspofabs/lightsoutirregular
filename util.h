@@ -105,6 +105,21 @@ inline const char * ToHexString( const unsigned char *bytes, size_t length ) {
 	}
 	return hexprintbuffer;
 }
+inline const char * ToBinaryString( const unsigned int binVal ) {
+	static thread_local char binBuffer[65 * 4];
+	static int selected = 0; selected = (selected + 1) % 4;
+	char *bb = binBuffer + (selected * 65);
+	bb[0] = 0;
+	for( size_t i = 0; i < sizeof(binVal)*8; ++i ) {
+		strcat(bb,(binVal&(1<<i))?"1":"0");
+	}
+	char *bend = bb+31;
+	while( *bend == '0' && bend > bb ) {
+		*bend = 0;
+		--bend;
+	}
+	return bb;
+}
 
 void PrintTrace();
 

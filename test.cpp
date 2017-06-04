@@ -4,52 +4,85 @@ bool verbose = true;
 int loggingLevel = 3;
 
 #include "ConfigReader.h"
+#include <vector>
+
+typedef std::vector<int> ivec;
+typedef std::vector<ivec> ivecvec;
 
 struct Workspace {
-	typedef std::vector<int> ivec;
-	typedef std::vector<ivec> ivecvec;
 	ivecvec board;
+	unsigned int maxW;
+};
+
+struct Board {
+	unsigned char *b;
+	unsigned int w;
+	unsigned int h;
+	Board() : b(0) {}
+	void ToggleOne( int x, int y ) {
+		unsigned char &cell = b[x+y*w];
+		if( cell > 0 ) {
+			cell = 3 - cell;
+		}
+	}
+	void Toggle( int x, int y ) {
+		ToggleOne( x, y );	
+		ToggleOne( x-1, y );	
+		ToggleOne( x, y-1 );	
+		ToggleOne( x+1, y );	
+		ToggleOne( x, y+1 );	
+	}
+	bool FindSolution() {
+		// count valid "buttons"
+		int buttonCount = 0;
+
+		// run through all permutations in sequence (use gray code to cover all permutations without resetting)
+		unsigned int grayBits;
+		for( int i = 0; i < buttonCount; ++i ) {
+			grayBits = i ^ (i>>1);
+			logf( 1, "Bin %-9s - Gray %-9s\n", ToBinaryString( i ), ToBinaryString( grayBits ) );
+		}
+
+		// check each time for all 1s
+
+		// if we reach the end, then we're in an impossble situation
+		return false;
+	}
+	void FromWorkspace(const Workspace &ws) {
+		w = ws.maxW;
+		h = ws.board.size();
+		b = (unsigned char *)malloc( w*h );
+		memset( b, 0, w * h );
+		for( size_t iy = 0; iy < h; ++iy ) {
+			const ivec &row = ws.board[iy];
+			for( size_t ix = 0; ix < row.size(); ++ix ) {
+				b[iy*w+ix] = row[ix];
+			}
+		}
+	}
 };
 
 void AddBoardLine( const char *line, void *user ) {
-	Workspace *w = (Workspace*)user;
+	Workspace *ws = (Workspace*)user;
 	ivec newRow;
 	while( *line ) {
-		float val;
-		int r = sscanf( line, "%f", &val );
+		int value = 0;
+		if( *line == 'x' )
+			value = 2;
+		if( *line == '.' )
+			value = 1;
+		line += 1;
+		newRow.push_back(value);
 	}
+
 	if( newRow.size() > 0 ) {
-		w.board.push_back( newRow );
-	}
-}
-void AddResult( const char *line, void *user ) {
-	V3 v;
-	sscanf( line, "%f,%f,%f", &v.x, &v.y, &v.z );
-	Workspace *w = (Workspace*)user;
-	w->results.push_back( v );
-}
-void SetupQuaternion( const char *line, void *user ) {
-	Quat q;
-	int num = sscanf( line, "%f,%f,%f,%f", &q.s, &q.i, &q.j, &q.k );
-	if( num == 4 ) {
-		Workspace *w = (Workspace*)user;
-		w->quat = q;
-		logf( 1, "Load Quaternion %.2f, %.2f,%.2f,%.2f\n", q.s, q.i,q.j,q.k );
-		return;
-	}
-	num = sscanf( line, "%f*%f,%f,%f", &q.s, &q.i, &q.j, &q.k );
-	if( num == 4 ) {
-		Workspace *w = (Workspace*)user;
-		logf( 1, "Load AxisAngle %.2f (%.2fpi), %.2f,%.2f,%.2f\n", q.s, q.s/M_PI, q.i,q.j,q.k );
-		q = QuatFromAngleAxis(q.s,q.i,q.j,q.k);
-		w->quat = q;
-		return;
+		ws->board.push_back( newRow );
+		if( ws->maxW < newRow.size() )
+			ws->maxW = newRow.size();
 	}
 }
 LineReaderCallback GetCallbackFromHeader( const char *line, void * ) {
-	if( 0 == strcasecmp( line, "verts" ) ) { return AddVertex; }
-	if( 0 == strcasecmp( line, "results" ) ) { return AddResult; }
-	if( 0 == strcasecmp( line, "quat" ) ) { return SetupQuaternion; }
+	if( 0 == strcasecmp( line, "board" ) ) { return AddBoardLine; }
 	logf( 1, "Unexpected config header [%s], returning null handler\n", line );
 	return 0;
 }
@@ -60,43 +93,25 @@ LineReaderCallback GetCallbackFromHeader( const char *line, void * ) {
 bool RunPuzzle( int testID ) {
 	char filename[128];
 	sprintf( filename, "test%i.txt", testID );
-	Workspace w;
-	int result = OpenConfigAndCallbackPerLine( filename, GetCallbackFromHeader, 0, &w );
+	Workspace ws;
+	int result = OpenConfigAndCallbackPerLine( filename, GetCallbackFromHeader, 0, &ws );
 	TestAssert( 0 == result );
-	TestAssert( w.verts.size() > 0 );
-	TestAssert( w.results.size() > 0 );
-	//logf( 1, "Testing %i vs %i\n", w.verts.size(), w.results.size() );
-	TestAssert( w.results.size() == w.verts.size() );
-	Quat q = w.quat;
-	Quat iq = conj(w.quat);
-	logf( 1, "Testing multiplication by Q(%.2f,%.2f,%.2f,%.2f)\n", q.s,q.i,q.j,q.k );
-	for( size_t i = 0; i < w.verts.size(); ++i ) {
-		V3 in = w.verts[i];
-		V3 result = w.results[i];
-		logf( 1, "Testing Q(%.2f,%.2f,%.2f,%.2f) * V(%.2f,%.2f,%.2f) * Q(%.2f,%.2f,%.2f,%.2f) = V(%.2f,%.2f,%.2f)\n", q.s,q.i,q.j,q.k, in.x,in.y,in.z, iq.s,iq.i,iq.j,iq.k, result.x, result.y,result.z );
-		Quat r = V3ToQuat( in );
-		logf( 1, "r = %f,%f,%f,%f\n", r.s,r.i,r.j,r.k );
-		Quat qr = q * r;
-		logf( 1, "qr = %f,%f,%f,%f\n", qr.s,qr.i,qr.j,qr.k );
-		Quat out = qr * iq;
-		logf( 1, "out = %f,%f,%f,%f\n", out.s,out.i,out.j,out.k );
-		V3 v = QuatToV3( out );
-		logf( 1, "v = %f,%f,%f\n", v.x, v.y, v.z );
-		TestAssert( 0.1 > fabs( v.x - result.x ) );
-		TestAssert( 0.1 > fabs( v.y - result.y ) );
-		TestAssert( 0.1 > fabs( v.z - result.z ) );
-	}
+
+	Board b; b.FromWorkspace( ws );
+
+	TestAssert( b.FindSolution() );
+
 	return true;
 }
 
-const int MAX_PUZZLE_ID = 1;
+const int MAX_PUZZLE_ID = 4;
 
 int main( ) {
-	for( int tid = 1; tid <= MAX_PUZZLE_ID; ++tid ) {
-		RunPuzzle(tid) );
+	for( int pid = 0; pid <= MAX_PUZZLE_ID; ++pid ) {
+		RunPuzzle(pid);
 	}
 
-	logf( 1, GREEN "ALL PUZZLES SOLVED" CLEAR "\n" );
+	//logf( 1, GREEN "ALL PUZZLES SOLVED" CLEAR "\n" );
 
 	return 0;
 }
