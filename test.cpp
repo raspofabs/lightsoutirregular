@@ -14,17 +14,18 @@ typedef std::vector<ivec> ivecvec;
 
 struct Workspace {
 	ivecvec board;
-	unsigned int maxW;
+	unsigned int maxW = 0;
 };
 
 struct Board {
 	unsigned char *b;
-	unsigned int w;
-	unsigned int h;
-	unsigned int lightCount;
-	unsigned int buttonCount;
+	unsigned int w = 0;
+	unsigned int h = 0;
+	unsigned int lightCount = 0;
+	unsigned int buttonCount = 0;
 	Board() : b(0) {}
 	void PrintBoard() {
+		logf( 1, " B( %i, %i )\n", w, h );
 		logf( 1, " Lights %i\n", lightCount );
 		for( unsigned int y = 0; y < h; ++y ) {
 			char buff[32] = {0};
@@ -162,11 +163,14 @@ bool RunPuzzle( int testID ) {
 	char filename[128];
 	sprintf( filename, "test%i.txt", testID );
 	Workspace ws;
+	logf( 1, "Load board\n" );
 	int result = OpenConfigAndCallbackPerLine( filename, GetCallbackFromHeader, 0, &ws );
 	TestAssert( 0 == result );
 
+	logf( 1, "from workspace\n" );
 	Board b; b.FromWorkspace( ws );
 
+	logf( 1, "Find Solution\n" );
 	TestAssert( b.FindSolution() );
 
 	return true;
@@ -175,9 +179,10 @@ bool RunPuzzle( int testID ) {
 const int MAX_PUZZLE_ID = 6;
 
 int main( ) {
-	for( int pid = 0; pid <= MAX_PUZZLE_ID; ++pid ) {
-		RunPuzzle(pid);
-	}
+	RunPuzzle(5);
+	//for( int pid = 0; pid <= MAX_PUZZLE_ID; ++pid ) {
+		//RunPuzzle(pid);
+	//}
 
 	//logf( 1, GREEN "ALL PUZZLES SOLVED" CLEAR "\n" );
 
