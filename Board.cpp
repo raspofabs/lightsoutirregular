@@ -173,7 +173,11 @@ bool Board::IsOn( unsigned int x, unsigned int y ) {
 	}
 	return false;
 }
-bool Board::FindEliminationSolution() {
+bool Board::FindSolution() {
+	if( modulo != 2 ) {
+		logf( 1, "No solver for modulo greater than 2 boards\n" );
+		return false;
+	}
 	//PrintBoard();
 	// count valid "buttons"
 	static const int MAX_BUTTONS = 64;
@@ -221,6 +225,7 @@ bool Board::FindEliminationSolution() {
 		blank.Toggle( btnx[btn], btny[btn] );
 	}
 
+#if 0
 	printf( "Matrix before elimination\n" );
 	for( unsigned int row = 0; row < buttonCount; ++row ) {
 		for( unsigned int column = 0; column < buttonCount; ++column ) {
@@ -232,6 +237,7 @@ bool Board::FindEliminationSolution() {
 		}
 		printf( "\n" );
 	}
+#endif
 
 	// do the elimination
 	unsigned int firstLegitimateRow = 0;
@@ -294,6 +300,7 @@ bool Board::FindEliminationSolution() {
 		}
 	}
 
+#if 0
 	printf( "Matrix after elimination\n" );
 	for( unsigned int row = 0; row < buttonCount; ++row ) {
 		for( unsigned int column = 0; column < buttonCount; ++column ) {
@@ -306,10 +313,12 @@ bool Board::FindEliminationSolution() {
 		printf( "\n" );
 	}
 	printf( "\n" );
+#endif
+
 	// using the matrix generated, clear the problem board
-	logf( 1, "Use the created matrix\n" );
+	//logf( 1, "Use the created matrix\n" );
 	memset( temp, 0, sizeof(temp) );
-	for( unsigned int column = 0; column < buttonCount; ++column ) {
+	for( unsigned int column = 0; column <= firstLegitimateRow; ++column ) {
 		// we're building up the button presses
 		// toggle temp rows with the current row if it matches the goal
 		if( goal[column] ) {
@@ -321,85 +330,36 @@ bool Board::FindEliminationSolution() {
 		}
 	}
 
+	bool cleared = true;
+	for( unsigned int column = 0; column < buttonCount; ++column ) {
+		if( temp[column] != goal[column] ) cleared = false;
+	}
+
+#if 0
 	for( unsigned int column = 0; column < buttonCount; ++column ) {
 		printf( "%c", ".#"[temp[column]] );
+		if( temp[column] != goal[column] ) cleared = false;
 	}
 	printf( " " );
 	for( unsigned int column = 0; column < buttonCount; ++column ) {
 		printf( "%c", ".#"[temp[column+buttonCount]] );
 	}
 	printf( "\n" );
+#endif
 
-	return true;
+	if( cleared ) {
+		printf( "Solution:\n" );
+		for( unsigned int column = 0; column < buttonCount; ++column ) {
+			if( temp[column+buttonCount] ) {
+				printf( "press %i,%i\n", btnx[column], btny[column] );
+			}
+		}
+	}
+	return cleared;
 	
 	// if we reach the end, then we're in an impossble situation
 	return false;
 }
-bool Board::FindSolution() {
-	if( modulo != 2 ) {
-		logf( 1, "No solver for modulo greater than 2 boards\n" );
-		return false;
-	}
-	//PrintBoard();
-	// count valid "buttons"
-	static const int MAX_BUTTONS = 8;
-
-	unsigned int permutations = 1U<<buttonCount;
-	if( buttonCount > MAX_BUTTONS ) {
-		logf( 2, "Run through %i buttons = %i permutations, so not doing it brute force\n", buttonCount, permutations );
-		return FindEliminationSolution();
-	}
-
-	unsigned char btnx[MAX_BUTTONS];
-	unsigned char btny[MAX_BUTTONS];
-	{
-		unsigned int btn = 0;
-		for( size_t y = 0; y < h; ++y ) {
-			for( size_t x = 0; x < w; ++x ) {
-				if( b[x+y*w] != 0 ) {
-					if( btn < MAX_BUTTONS ) {
-						btnx[btn] = x;
-						btny[btn] = y;
-					}
-					btn += 1;
-				}
-			}
-		}
-		assert( btn == buttonCount );
-	}
-	
-	logf( 2, "Run through %i buttons = %i permutations\n", buttonCount, permutations );
-	// run through all permutations in sequence (use gray code to cover all permutations without resetting)
-	unsigned int grayBits = 0;
-	for( unsigned int i = 0; i < permutations; ++i ) {
-		unsigned int changeBit = grayBits;
-		grayBits = i ^ (i>>1);
-		changeBit ^= grayBits;
-		changeBit = hibit( changeBit );
-		//logf( 1, "Bin %-9s - Gray %-9s - Change %i\n", ToBinaryString( i ), ToBinaryString( grayBits ), changeBit );
-		if( changeBit > 0 ) {
-			//logf( 1, "Toggle %i,%i\n", btnx[changeBit-1], btny[changeBit-1] );
-			Toggle( btnx[changeBit-1], btny[changeBit-1] );
-		}
-		//PrintBoard();
-
-		// check each time for all 1s
-		if( lightCount == 0 ) {
-			// Solution
-			for( unsigned int i = 0; i < 32; ++i ) {
-				if( (1U<<i) & grayBits ) {
-					logf( 1, "Toggle %i,%i\n", btnx[i], btny[i] );
-				}
-			}
-			return true;
-		}
-	}
-
-
-	// if we reach the end, then we're in an impossble situation
-	return false;
-}
-
 
 static void AddBoardName( const char *line, void *user ) {
 	Workspace *ws = (Workspace*)user;

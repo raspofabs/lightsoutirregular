@@ -34,7 +34,6 @@ struct Board {
 	std::string ToString();
 	void ToggleOne( unsigned int x, unsigned int y );
 	bool FindSolution();
-	bool FindEliminationSolution();
 	void BuildBlank( bool filled = false );
 	void UnToggle( unsigned int x, unsigned int y ); // used to setup puzzles
 	void FromWorkspace(const Workspace &ws);
