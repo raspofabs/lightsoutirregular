@@ -236,9 +236,9 @@ bool Board::FindEliminationSolution() {
 		// legitimate pivot
 		if( pivot < MAX_BUTTONS ) {
 			// swap pivot up to first row
+			memcpy( temp, &rows[ROWLEN*pivot], sizeof(temp) );
 			if( pivot != firstLegitimateRow ) {
 				logf( 1, "Column %i swap rows %i and %i\n", column, pivot, firstLegitimateRow );
-				memcpy( temp, &rows[ROWLEN*pivot], sizeof(temp) );
 				memcpy( &rows[ROWLEN*pivot], &rows[ROWLEN*firstLegitimateRow], sizeof(temp) );
 				memcpy( &rows[ROWLEN*firstLegitimateRow], temp, sizeof(temp) );
 				pivot = firstLegitimateRow;
@@ -248,8 +248,9 @@ bool Board::FindEliminationSolution() {
 				// if we have a match, then toggle all matching
 				if( rows[ROWLEN*r + column] ) {
 					logf( 1, "Row %i needs combining with pivot\n", r );
-					for( unsigned int c = column; c < buttonCount; ++c ) {
+					for( unsigned int c = column; c < buttonCount*2; ++c ) {
 						if( temp[c] ) {
+							logf( 1, "Row %i toggle element %i\n", r, c );
 							rows[ROWLEN*r + c] ^= 1;
 						}
 					}
@@ -262,7 +263,11 @@ bool Board::FindEliminationSolution() {
 
 	for( unsigned int row = 0; row < buttonCount; ++row ) {
 		for( unsigned int column = 0; column < buttonCount; ++column ) {
-			printf( "%i", rows[ROWLEN*row+column] );
+			printf( "%c", ".#"[rows[ROWLEN*row+column]] );
+		}
+		printf( " " );
+		for( unsigned int column = 0; column < buttonCount; ++column ) {
+			printf( "%c", ".#"[rows[ROWLEN*row+column+buttonCount]] );
 		}
 		printf( "\n" );
 	}
