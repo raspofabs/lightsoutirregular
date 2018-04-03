@@ -183,6 +183,7 @@ bool Board::FindEliminationSolution() {
 		return false;
 	}
 
+	bool goal[MAX_BUTTONS] = { false };
 	unsigned char btnx[MAX_BUTTONS];
 	unsigned char btny[MAX_BUTTONS];
 	{
@@ -190,6 +191,7 @@ bool Board::FindEliminationSolution() {
 		for( size_t y = 0; y < h; ++y ) {
 			for( size_t x = 0; x < w; ++x ) {
 				if( b[x+y*w] != 0 ) {
+					goal[btn] = IsOn( x, y );
 					if( btn < MAX_BUTTONS ) {
 						btnx[btn] = x;
 						btny[btn] = y;
@@ -205,10 +207,9 @@ bool Board::FindEliminationSolution() {
 	Board blank = *this;
 	blank.ClearContent();
 
-	Board results[MAX_BUTTONS];
 	static const unsigned int ROWLEN = MAX_BUTTONS*2;
-	bool rows[MAX_BUTTONS*ROWLEN];
-	bool temp[ROWLEN];
+	bool rows[MAX_BUTTONS*ROWLEN]; memset( rows, 0, sizeof( rows ) );
+	bool temp[ROWLEN]; memset( temp, 0, sizeof( temp ) );
 
 	for( unsigned int btn = 0; btn < buttonCount; ++btn ) {
 		bool *row = &rows[ROWLEN*btn];
@@ -220,15 +221,27 @@ bool Board::FindEliminationSolution() {
 		blank.Toggle( btnx[btn], btny[btn] );
 	}
 
+	printf( "Matrix before elimination\n" );
+	for( unsigned int row = 0; row < buttonCount; ++row ) {
+		for( unsigned int column = 0; column < buttonCount; ++column ) {
+			printf( "%c", ".#"[rows[ROWLEN*row+column]] );
+		}
+		printf( " " );
+		for( unsigned int column = 0; column < buttonCount; ++column ) {
+			printf( "%c", ".#"[rows[ROWLEN*row+column+buttonCount]] );
+		}
+		printf( "\n" );
+	}
+
 	// do the elimination
 	unsigned int firstLegitimateRow = 0;
-	for( unsigned int column = 0; column < buttonCount; ++column ) {
+	for( unsigned int column = 0; column < buttonCount-1; ++column ) {
 		// find the top row with this column active
 		unsigned int pivot = MAX_BUTTONS;
 		for( unsigned int r = firstLegitimateRow; r < buttonCount; ++r ) {
 			if( rows[ROWLEN*r + column] ) {
 				pivot = r;
-				logf( 1, "Column %i pivot in row %i\n", column, pivot );
+				//logf( 1, "Column %i pivot in row %i\n", column, pivot );
 				break;
 			}
 		}
@@ -238,7 +251,7 @@ bool Board::FindEliminationSolution() {
 			// swap pivot up to first row
 			memcpy( temp, &rows[ROWLEN*pivot], sizeof(temp) );
 			if( pivot != firstLegitimateRow ) {
-				logf( 1, "Column %i swap rows %i and %i\n", column, pivot, firstLegitimateRow );
+				//logf( 1, "Column %i swap rows %i and %i\n", column, pivot, firstLegitimateRow );
 				memcpy( &rows[ROWLEN*pivot], &rows[ROWLEN*firstLegitimateRow], sizeof(temp) );
 				memcpy( &rows[ROWLEN*firstLegitimateRow], temp, sizeof(temp) );
 				pivot = firstLegitimateRow;
@@ -247,10 +260,10 @@ bool Board::FindEliminationSolution() {
 			for( unsigned int r = firstLegitimateRow; r < buttonCount; ++r ) {
 				// if we have a match, then toggle all matching
 				if( rows[ROWLEN*r + column] ) {
-					logf( 1, "Row %i needs combining with pivot\n", r );
+					//logf( 1, "Row %i needs combining with pivot\n", r );
 					for( unsigned int c = column; c < buttonCount*2; ++c ) {
 						if( temp[c] ) {
-							logf( 1, "Row %i toggle element %i\n", r, c );
+							//logf( 1, "Row %i toggle element %i\n", r, c );
 							rows[ROWLEN*r + c] ^= 1;
 						}
 					}
@@ -261,6 +274,27 @@ bool Board::FindEliminationSolution() {
 		}
 	}
 
+	// now cleanup the rows, eliminating what can be eliminated
+	for( unsigned int column = firstLegitimateRow; column > 0; --column ) {
+		// we're working bottom up,
+		// toggle all rows with the current pivot if they have that pivot column
+		memcpy( temp, &rows[ROWLEN*column], sizeof(temp) );
+
+		for( unsigned int r = 0; r < column; ++r ) {
+			// if we have a match, then toggle all matching
+			if( rows[ROWLEN*r + column] ) {
+				//logf( 1, "Row %i needs combining with pivot\n", r );
+				for( unsigned int c = column; c < buttonCount*2; ++c ) {
+					if( temp[c] ) {
+						//logf( 1, "Row %i toggle element %i\n", r, c );
+						rows[ROWLEN*r + c] ^= 1;
+					}
+				}
+			}
+		}
+	}
+
+	printf( "Matrix after elimination\n" );
 	for( unsigned int row = 0; row < buttonCount; ++row ) {
 		for( unsigned int column = 0; column < buttonCount; ++column ) {
 			printf( "%c", ".#"[rows[ROWLEN*row+column]] );
@@ -274,6 +308,28 @@ bool Board::FindEliminationSolution() {
 	printf( "\n" );
 	// using the matrix generated, clear the problem board
 	logf( 1, "Use the created matrix\n" );
+	memset( temp, 0, sizeof(temp) );
+	for( unsigned int column = 0; column < buttonCount; ++column ) {
+		// we're building up the button presses
+		// toggle temp rows with the current row if it matches the goal
+		if( goal[column] ) {
+			for( unsigned int c = column; c < buttonCount*2; ++c ) {
+				if( rows[ROWLEN*column + c] ) {
+					temp[c] ^= 1;
+				}
+			}
+		}
+	}
+
+	for( unsigned int column = 0; column < buttonCount; ++column ) {
+		printf( "%c", ".#"[temp[column]] );
+	}
+	printf( " " );
+	for( unsigned int column = 0; column < buttonCount; ++column ) {
+		printf( "%c", ".#"[temp[column+buttonCount]] );
+	}
+	printf( "\n" );
+
 	return true;
 	
 	// if we reach the end, then we're in an impossble situation
