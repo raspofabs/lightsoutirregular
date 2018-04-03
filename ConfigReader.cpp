@@ -39,6 +39,7 @@ int OpenConfigAndCallbackPerLine( const char *source, HeaderReaderCallback hcb, 
 		fclose( fp );
 		return 0;
 	}
+	printf( "File [%s] not found\n", source );
 	return 404;
 }
 
