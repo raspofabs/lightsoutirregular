@@ -47,6 +47,17 @@ void Board::Clear() {
 		b = 0;
 	}
 }
+void Board::ClearContent() {
+	for( unsigned int y = 0; y < h; ++y ) {
+		for( unsigned int x = 0; x < w; ++x ) {
+			int cellIndex = x + y * w;
+			char cellVal = b[cellIndex];
+			if( cellVal ) {
+				b[cellIndex] = 1;
+			}
+		}
+	}
+}
 void Board::BuildBlank( bool filled ) {
 	b = (unsigned char *)malloc( w*h );
 	lightCount = 0;
@@ -118,14 +129,6 @@ std::string Board::ToString() {
 	}
 	return buffer;
 }
-void Board::SetButton( unsigned int x, unsigned int y ) {
-	if( x >= w || y >= h )
-		return;
-	unsigned char &cell = b[x+y*w];
-	if( cell > 0 ) {
-		cell = 3;
-	}
-}
 void Board::ToggleOne( unsigned int x, unsigned int y ) {
 	if( x >= w || y >= h )
 		return;
@@ -158,6 +161,119 @@ void Board::UnToggle( unsigned int x, unsigned int y ) {
 		ToggleOne( x, y+1 );	
 	}
 }
+bool Board::IsOn( unsigned int x, unsigned int y ) {
+	if( x >= w || y >= h )
+		return false;
+	unsigned char &cell = b[x+y*w];
+	if( cell > 0 ) {
+		if( cell == 1 ) {
+			return false;
+		}
+		return true;
+	}
+	return false;
+}
+bool Board::FindEliminationSolution() {
+	//PrintBoard();
+	// count valid "buttons"
+	static const int MAX_BUTTONS = 64;
+
+	if( buttonCount > MAX_BUTTONS ) {
+		logf( 2, "%i buttons is too many for eliminination too.\n", buttonCount );
+		return false;
+	}
+
+	unsigned char btnx[MAX_BUTTONS];
+	unsigned char btny[MAX_BUTTONS];
+	{
+		unsigned int btn = 0;
+		for( size_t y = 0; y < h; ++y ) {
+			for( size_t x = 0; x < w; ++x ) {
+				if( b[x+y*w] != 0 ) {
+					if( btn < MAX_BUTTONS ) {
+						btnx[btn] = x;
+						btny[btn] = y;
+					}
+					btn += 1;
+				}
+			}
+		}
+		assert( btn == buttonCount );
+	}
+
+	// build as many boards as we have buttons
+	Board blank = *this;
+	blank.ClearContent();
+
+	Board results[MAX_BUTTONS];
+	static const unsigned int ROWLEN = MAX_BUTTONS*2;
+	bool rows[MAX_BUTTONS*ROWLEN];
+	bool temp[ROWLEN];
+
+	for( unsigned int btn = 0; btn < buttonCount; ++btn ) {
+		bool *row = &rows[ROWLEN*btn];
+		blank.Toggle( btnx[btn], btny[btn] );
+		for( unsigned int btn = 0; btn < buttonCount; ++btn ) {
+			row[btn] = blank.IsOn( btnx[btn], btny[btn] );
+		}
+		row[btn + buttonCount] = true;
+		blank.Toggle( btnx[btn], btny[btn] );
+	}
+
+	// do the elimination
+	unsigned int firstLegitimateRow = 0;
+	for( unsigned int column = 0; column < buttonCount; ++column ) {
+		// find the top row with this column active
+		unsigned int pivot = MAX_BUTTONS;
+		for( unsigned int r = firstLegitimateRow; r < buttonCount; ++r ) {
+			if( rows[ROWLEN*r + column] ) {
+				pivot = r;
+				logf( 1, "Column %i pivot in row %i\n", column, pivot );
+				break;
+			}
+		}
+
+		// legitimate pivot
+		if( pivot < MAX_BUTTONS ) {
+			// swap pivot up to first row
+			if( pivot != firstLegitimateRow ) {
+				logf( 1, "Column %i swap rows %i and %i\n", column, pivot, firstLegitimateRow );
+				memcpy( temp, &rows[ROWLEN*pivot], sizeof(temp) );
+				memcpy( &rows[ROWLEN*pivot], &rows[ROWLEN*firstLegitimateRow], sizeof(temp) );
+				memcpy( &rows[ROWLEN*firstLegitimateRow], temp, sizeof(temp) );
+				pivot = firstLegitimateRow;
+			}
+			firstLegitimateRow+=1;
+			for( unsigned int r = firstLegitimateRow; r < buttonCount; ++r ) {
+				// if we have a match, then toggle all matching
+				if( rows[ROWLEN*r + column] ) {
+					logf( 1, "Row %i needs combining with pivot\n", r );
+					for( unsigned int c = column; c < buttonCount; ++c ) {
+						if( temp[c] ) {
+							rows[ROWLEN*r + c] ^= 1;
+						}
+					}
+				}
+			}
+		} else {
+			logf( 1, "No legitimate pivot for column %i\n", column );
+		}
+	}
+
+	for( unsigned int row = 0; row < buttonCount; ++row ) {
+		for( unsigned int column = 0; column < buttonCount; ++column ) {
+			printf( "%i", rows[ROWLEN*row+column] );
+		}
+		printf( "\n" );
+	}
+	printf( "\n" );
+	// using the matrix generated, clear the problem board
+	logf( 1, "Use the created matrix\n" );
+	return true;
+	
+	// if we reach the end, then we're in an impossble situation
+	return false;
+}
 bool Board::FindSolution() {
 	if( modulo != 2 ) {
 		logf( 1, "No solver for modulo greater than 2 boards\n" );
@@ -165,25 +281,30 @@ bool Board::FindSolution() {
 	}
 	//PrintBoard();
 	// count valid "buttons"
-	unsigned char btnx[32];
-	unsigned char btny[32];
+	static const int MAX_BUTTONS = 8;
+
+	unsigned int permutations = 1U<<buttonCount;
+	if( buttonCount > MAX_BUTTONS ) {
+		logf( 2, "Run through %i buttons = %i permutations, so not doing it brute force\n", buttonCount, permutations );
+		return FindEliminationSolution();
+	}
+
+	unsigned char btnx[MAX_BUTTONS];
+	unsigned char btny[MAX_BUTTONS];
 	{
 		unsigned int btn = 0;
 		for( size_t y = 0; y < h; ++y ) {
 			for( size_t x = 0; x < w; ++x ) {
 				if( b[x+y*w] != 0 ) {
-					btnx[btn] = x;
-					btny[btn] = y;
+					if( btn < MAX_BUTTONS ) {
+						btnx[btn] = x;
+						btny[btn] = y;
+					}
 					btn += 1;
 				}
 			}
 		}
-	}
-
-	unsigned int permutations = 1U<<buttonCount;
-	if( buttonCount > 25 ) {
-		logf( 2, "Run through %i buttons = %i permutations, so not doing it\n", buttonCount, permutations );
-		return false;
+		assert( btn == buttonCount );
 	}
 	
 	logf( 2, "Run through %i buttons = %i permutations\n", buttonCount, permutations );

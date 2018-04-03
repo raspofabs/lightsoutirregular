@@ -17,6 +17,7 @@ struct Board {
 
 	bool Solved() { return lightCount == 0; }
 	void Toggle( unsigned int x, unsigned int y );
+	bool IsOn( unsigned int x, unsigned int y );
 
 	Board();
 	Board(const char *boardString);
@@ -24,15 +25,16 @@ struct Board {
 	Board( const Board &other );
 	Board& operator=( const Board &other );
 	void Clear();
+	void ClearContent();
 
 	void IncreaseWidth();
 	void IncreaseHeight();
 
 	void PrintBoard();
 	std::string ToString();
-	void SetButton( unsigned int x, unsigned int y );
 	void ToggleOne( unsigned int x, unsigned int y );
 	bool FindSolution();
+	bool FindEliminationSolution();
 	void BuildBlank( bool filled = false );
 	void UnToggle( unsigned int x, unsigned int y ); // used to setup puzzles
 	void FromWorkspace(const Workspace &ws);
