@@ -20,7 +20,5 @@ evey combination of the lights, but even then it was a very large number of
 combinations for some boards. I looked into how people have solved the lights
 out problem and found a rather lovely solution using Gaussian elimination.
 Adding this solution took an hour or so, and means I can handle solving puzzles
-that are rather much more large than before. I still don't complain at this
-point if a puzzle is actually unsolvable (for 5x5 there are some unsolvables,
-and though I can now detect that, I don't actually return solvability right
-now, though I should.)
+that are rather much more large than before. For 5x5 there are some
+unsolvables, and it can detect that, returning false and unsolvable.
