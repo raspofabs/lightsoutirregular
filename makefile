@@ -9,7 +9,7 @@ C11FLAGS= -fno-strict-aliasing -DUNIV_LINUX \
 	-Werror -Wall -Wextra $(OPTIMISE) $(DEBUG)
 LIBS=
 
-RAW_COMMONOBJECTS=util.o ConfigReader.o
+RAW_COMMONOBJECTS=util.o ConfigReader.o Board.o
 RAW_TARGETOBJECTS=$(TARGETS:%=%.o)
 
 COMMONOBJECTS=$(RAW_COMMONOBJECTS:%=build/%)
