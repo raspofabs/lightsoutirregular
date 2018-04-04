@@ -21,7 +21,7 @@ bool RunPuzzle( int testID ) {
 	return true;
 }
 
-const int MAX_PUZZLE_ID = 8;
+const int MAX_PUZZLE_ID = 9;
 
 int main( ) {
 	for( int pid = 0; pid <= MAX_PUZZLE_ID; ++pid ) {
